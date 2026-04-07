@@ -1,0 +1,182 @@
+{% layout 'theme' %}
+{% comment %}
+  Alternate collection template: each color (Colour) option value appears as its own grid item,
+  linking to the product with ?variant= so the correct swatch loads on the product page.
+
+  In the theme editor: assign this template to a collection (e.g. "Show Color Variations").
+
+  Online Store 2.0 themes (e.g. Dawn) usually list JSON templates only. If this file does not
+  appear in the template picker, duplicate your theme’s collection.json as
+  collection.with-variants.json and replace the main section with one that contains this markup,
+  or use a vintage / Liquid-based collection layout.
+{% endcomment %}
+
+<style>
+  .collection-with-variants { padding: 2rem 1.5rem 3rem; max-width: 120rem; margin: 0 auto; }
+  .collection-with-variants__header { margin-bottom: 2rem; text-align: center; }
+  .collection-with-variants__title { font-size: 2rem; margin: 0 0 0.5rem; }
+  .collection-with-variants__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 1.5rem 1.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .collection-with-variants__card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+  .collection-with-variants__media {
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: rgba(0,0,0,0.04);
+    margin-bottom: 0.75rem;
+  }
+  .collection-with-variants__media img,
+  .collection-with-variants__media svg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .collection-with-variants__product-title { font-size: 1rem; font-weight: 600; margin: 0 0 0.35rem; line-height: 1.3; }
+  .collection-with-variants__price { font-size: 0.9375rem; }
+  .collection-with-variants__price-compare { text-decoration: line-through; opacity: 0.65; margin-left: 0.35rem; }
+  .collection-with-variants__pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2.5rem;
+  }
+  .collection-with-variants__pagination-link { text-decoration: underline; }
+</style>
+
+{% paginate collection.products by 24 %}
+  <div class="collection-with-variants">
+    <header class="collection-with-variants__header">
+      <h1 class="collection-with-variants__title">{{ collection.title }}</h1>
+      {% if collection.description != blank %}
+        <div class="collection-with-variants__description rte">{{ collection.description }}</div>
+      {% endif %}
+    </header>
+
+    <ul class="collection-with-variants__grid" role="list">
+      {% for product in collection.products %}
+        {% assign color_option = nil %}
+        {% assign color_position = 0 %}
+        {% for option in product.options_with_values %}
+          {% assign opt_name = option.name | strip | downcase %}
+          {% if opt_name == 'color' or opt_name == 'colour' %}
+            {% assign color_option = option %}
+            {% assign color_position = forloop.index %}
+            {% break %}
+          {% endif %}
+        {% endfor %}
+
+        {% if color_option %}
+          {% for color_value in color_option.values %}
+            {% assign card_variant = nil %}
+            {% for v in product.variants %}
+              {% if color_position == 1 and v.option1 == color_value %}
+                {% assign card_variant = v %}
+                {% break %}
+              {% elsif color_position == 2 and v.option2 == color_value %}
+                {% assign card_variant = v %}
+                {% break %}
+              {% elsif color_position == 3 and v.option3 == color_value %}
+                {% assign card_variant = v %}
+                {% break %}
+              {% endif %}
+            {% endfor %}
+
+            {% if card_variant %}
+              <li class="collection-with-variants__item">
+                <a class="collection-with-variants__card" href="{{ card_variant.url }}">
+                  <div class="collection-with-variants__media">
+                    {% if card_variant.image %}
+                      {% assign card_img_alt = card_variant.image.alt | default: product.title | append: ' - ' | append: color_value %}
+                      {{
+                        card_variant.image
+                        | image_url: width: 800
+                        | image_tag:
+                          loading: 'lazy',
+                          widths: '165, 360, 533, 720, 800',
+                          sizes: '(min-width: 990px) 25vw, (min-width: 750px) 33vw, 50vw',
+                          alt: card_img_alt
+                      }}
+                    {% elsif product.featured_image %}
+                      {% assign fallback_alt = product.featured_image.alt | default: product.title %}
+                      {{
+                        product.featured_image
+                        | image_url: width: 800
+                        | image_tag: loading: 'lazy', alt: fallback_alt
+                      }}
+                    {% else %}
+                      {{ 'product-1' | placeholder_svg_tag: 'collection-with-variants__placeholder' }}
+                    {% endif %}
+                  </div>
+                  <h2 class="collection-with-variants__product-title">
+                    {{ product.title }} - {{ color_value }}
+                  </h2>
+                  <div class="collection-with-variants__price">
+                    {% if card_variant.compare_at_price > card_variant.price %}
+                      <span class="collection-with-variants__price-sale">{{ card_variant.price | money }}</span>
+                      <span class="collection-with-variants__price-compare">{{ card_variant.compare_at_price | money }}</span>
+                    {% else %}
+                      <span class="collection-with-variants__price-regular">{{ card_variant.price | money }}</span>
+                    {% endif %}
+                  </div>
+                </a>
+              </li>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          {% assign card_variant = product.selected_or_first_available_variant %}
+          <li class="collection-with-variants__item">
+            <a class="collection-with-variants__card" href="{{ card_variant.url }}">
+              <div class="collection-with-variants__media">
+                {% if product.featured_image %}
+                  {% assign fallback_alt = product.featured_image.alt | default: product.title %}
+                  {{
+                    product.featured_image
+                    | image_url: width: 800
+                    | image_tag: loading: 'lazy', alt: fallback_alt
+                  }}
+                {% else %}
+                  {{ 'product-1' | placeholder_svg_tag: 'collection-with-variants__placeholder' }}
+                {% endif %}
+              </div>
+              <h2 class="collection-with-variants__product-title">{{ product.title }}</h2>
+              <div class="collection-with-variants__price">
+                {% if card_variant.compare_at_price > card_variant.price %}
+                  <span class="collection-with-variants__price-sale">{{ card_variant.price | money }}</span>
+                  <span class="collection-with-variants__price-compare">{{ card_variant.compare_at_price | money }}</span>
+                {% else %}
+                  <span class="collection-with-variants__price-regular">{{ card_variant.price | money }}</span>
+                {% endif %}
+              </div>
+            </a>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+
+    {% if paginate.pages > 1 %}
+      <nav class="collection-with-variants__pagination" aria-label="Pagination">
+        {% if paginate.previous %}
+          <a class="collection-with-variants__pagination-link" href="{{ paginate.previous.url }}">Previous</a>
+        {% endif %}
+        <span class="collection-with-variants__pagination-status">
+          Page {{ paginate.current_page }} of {{ paginate.pages }}
+        </span>
+        {% if paginate.next %}
+          <a class="collection-with-variants__pagination-link" href="{{ paginate.next.url }}">Next</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  </div>
+{% endpaginate %}
